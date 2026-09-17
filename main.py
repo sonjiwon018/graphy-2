@@ -502,7 +502,6 @@ bubble_df = df[
 ].copy()
 
 
-# 필요한 데이터가 없는 영화 제거
 bubble_df = bubble_df.dropna(
     subset=[
         "movieNm",
@@ -514,7 +513,6 @@ bubble_df = bubble_df.dropna(
 )
 
 
-# 음수 값 제거
 bubble_df = bubble_df[
     (bubble_df["first_scrn"] >= 0) &
     (bubble_df["first_week_audi"] >= 0) &
@@ -549,14 +547,6 @@ fig6 = px.scatter(
 fig6.update_traces(
     marker=dict(
         opacity=0.7
-    ),
-    hovertemplate=(
-        "<b>%{hovertext}</b><br>"
-        "장르: %{customdata[0]}<br>"
-        "개봉일 스크린수: %{x:,.0f}개<br>"
-        "총 관객: %{y:,.0f}명<br>"
-        "첫 주 관객: %{marker.size:,.0f}명"
-        "<extra></extra>"
     )
 )
 
@@ -579,6 +569,99 @@ st.subheader("💡 이 그래프로 알 수 있는 것")
 
 st.write(
     "개봉일 스크린수와 총 관객의 관계뿐만 아니라 첫 주 관객이 많은 영화가 어떤 위치에 분포하는지도 함께 살펴볼 수 있다."
+)
+
+
+# =======================================
+# 7. 제작 국가 → 장르 선버스트 그래프
+# =======================================
+st.divider()
+
+st.header("7️⃣ 제작 국가와 장르의 관계")
+
+st.caption(
+    "바깥쪽으로 갈수록 세부 장르가 나타나며, 각 칸의 크기는 영화 편수를 나타냅니다."
+)
+
+
+# ---------------------------------------
+# 선버스트용 데이터
+# ---------------------------------------
+sunburst_df = df[
+    [
+        "nation",
+        "genre_first"
+    ]
+].copy()
+
+
+# 제작 국가와 장르의 빈 값 처리
+sunburst_df["nation"] = (
+    sunburst_df["nation"]
+    .fillna("미상")
+    .astype(str)
+    .str.strip()
+)
+
+sunburst_df["genre_first"] = (
+    sunburst_df["genre_first"]
+    .fillna("미상")
+    .astype(str)
+    .str.strip()
+)
+
+
+sunburst_df.loc[
+    sunburst_df["nation"].isin(["", "nan", "None"]),
+    "nation"
+] = "미상"
+
+sunburst_df.loc[
+    sunburst_df["genre_first"].isin(["", "nan", "None"]),
+    "genre_first"
+] = "미상"
+
+
+# ---------------------------------------
+# 국가 → 장르 선버스트
+# ---------------------------------------
+fig7 = px.sunburst(
+    sunburst_df,
+    path=["nation", "genre_first"],
+    title="제작 국가 → 장르별 영화 편수",
+)
+
+
+fig7.update_traces(
+    hovertemplate=(
+        "<b>%{label}</b><br>"
+        "영화 편수: %{value}편"
+        "<extra></extra>"
+    )
+)
+
+
+fig7.update_layout(
+    height=750,
+    margin=dict(
+        t=60,
+        l=10,
+        r=10,
+        b=10
+    )
+)
+
+
+st.plotly_chart(
+    fig7,
+    use_container_width=True
+)
+
+
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    "제작 국가별로 어떤 장르의 영화가 많이 포함되어 있는지와 국가·장르별 영화 편수의 구성을 한눈에 비교할 수 있다."
 )
 
 
