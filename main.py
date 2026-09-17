@@ -27,7 +27,7 @@ DATA_URL = (
 def load_data():
     df = pd.read_csv(DATA_URL)
 
-    # 개봉일을 문자열로 처리
+    # 개봉일
     df["openDt"] = df["openDt"].astype(str).str.zfill(8)
 
     # 여러 장르가 | 로 연결되어 있다면 첫 번째 장르만 사용
@@ -257,7 +257,7 @@ st.plotly_chart(
 
 
 # ---------------------------------------
-# 가장 많은 영화가 들어 있는 관객 구간 계산
+# 가장 많은 영화가 들어 있는 관객 구간
 # ---------------------------------------
 hist_values = hist_df["total_audi"]
 
@@ -320,8 +320,6 @@ scatter_df = df[
     ]
 ].copy()
 
-
-# 산점도에 필요한 값이 없는 행 제거
 scatter_df = scatter_df.dropna(
     subset=[
         "movieNm",
@@ -331,8 +329,6 @@ scatter_df = scatter_df.dropna(
     ]
 )
 
-
-# 음수 데이터 제거
 scatter_df = scatter_df[
     (scatter_df["first_scrn"] >= 0) &
     (scatter_df["total_audi"] >= 0)
@@ -358,7 +354,6 @@ fig4 = px.scatter(
     title="개봉일 스크린수와 총 관객의 관계"
 )
 
-
 fig4.update_traces(
     marker=dict(
         size=10,
@@ -373,14 +368,12 @@ fig4.update_traces(
     )
 )
 
-
 fig4.update_layout(
     height=650,
     xaxis_title="개봉일 스크린수",
     yaxis_title="총 관객 수",
     legend_title="장르"
 )
-
 
 st.plotly_chart(
     fig4,
@@ -392,6 +385,200 @@ st.subheader("💡 이 그래프로 알 수 있는 것")
 
 st.write(
     "개봉일 스크린수가 많은 영화와 총 관객이 많은 영화 사이에 어떤 관계가 있는지 살펴볼 수 있다."
+)
+
+
+# =======================================
+# 5. 장르별 총 관객 박스플롯
+# =======================================
+st.divider()
+
+st.header("5️⃣ 장르별 총 관객 분포")
+
+st.caption(
+    "영화가 10편 이상인 장르만 골라 장르별 총 관객 분포를 비교합니다."
+)
+
+
+# ---------------------------------------
+# 영화가 10편 이상인 장르 찾기
+# ---------------------------------------
+genre_movie_counts = (
+    df["genre_first"]
+    .value_counts()
+)
+
+valid_genres = genre_movie_counts[
+    genre_movie_counts >= 10
+].index.tolist()
+
+
+box_df = df[
+    df["genre_first"].isin(valid_genres)
+].copy()
+
+box_df = box_df.dropna(
+    subset=[
+        "genre_first",
+        "movieNm",
+        "total_audi"
+    ]
+)
+
+box_df = box_df[
+    box_df["total_audi"] >= 0
+]
+
+
+# ---------------------------------------
+# 박스플롯
+# ---------------------------------------
+fig5 = px.box(
+    box_df,
+    x="genre_first",
+    y="total_audi",
+    points="outliers",
+    hover_name="movieNm",
+    hover_data={
+        "genre_first": True,
+        "total_audi": ":,.0f"
+    },
+    labels={
+        "genre_first": "장르",
+        "total_audi": "총 관객 수"
+    },
+    title="장르별 총 관객 분포"
+)
+
+fig5.update_traces(
+    hovertemplate=(
+        "<b>%{hovertext}</b><br>"
+        "장르: %{x}<br>"
+        "총 관객: %{y:,.0f}명"
+        "<extra></extra>"
+    )
+)
+
+fig5.update_layout(
+    height=650,
+    xaxis_title="장르",
+    yaxis_title="총 관객 수"
+)
+
+st.plotly_chart(
+    fig5,
+    use_container_width=True
+)
+
+
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    "영화가 10편 이상인 장르들의 총 관객 분포와 장르별 관객 수의 차이를 비교할 수 있다."
+)
+
+
+# =======================================
+# 6. 첫 주 관객을 크기로 표현한 버블 그래프
+# =======================================
+st.divider()
+
+st.header("6️⃣ 첫 주 관객을 크기로 나타낸 버블 그래프")
+
+st.caption(
+    "개봉일 스크린수와 총 관객의 관계를 유지하면서, "
+    "버블 크기는 첫 주 관객 수를 나타냅니다."
+)
+
+
+bubble_df = df[
+    [
+        "movieNm",
+        "genre_first",
+        "first_scrn",
+        "first_week_audi",
+        "total_audi"
+    ]
+].copy()
+
+
+# 필요한 데이터가 없는 영화 제거
+bubble_df = bubble_df.dropna(
+    subset=[
+        "movieNm",
+        "genre_first",
+        "first_scrn",
+        "first_week_audi",
+        "total_audi"
+    ]
+)
+
+
+# 음수 값 제거
+bubble_df = bubble_df[
+    (bubble_df["first_scrn"] >= 0) &
+    (bubble_df["first_week_audi"] >= 0) &
+    (bubble_df["total_audi"] >= 0)
+]
+
+
+fig6 = px.scatter(
+    bubble_df,
+    x="first_scrn",
+    y="total_audi",
+    size="first_week_audi",
+    color="genre_first",
+    hover_name="movieNm",
+    hover_data={
+        "genre_first": True,
+        "first_scrn": ":,.0f",
+        "first_week_audi": ":,.0f",
+        "total_audi": ":,.0f"
+    },
+    size_max=45,
+    labels={
+        "first_scrn": "개봉일 스크린수",
+        "total_audi": "총 관객 수",
+        "first_week_audi": "첫 주 관객",
+        "genre_first": "장르"
+    },
+    title="개봉일 스크린수 · 총 관객 · 첫 주 관객"
+)
+
+
+fig6.update_traces(
+    marker=dict(
+        opacity=0.7
+    ),
+    hovertemplate=(
+        "<b>%{hovertext}</b><br>"
+        "장르: %{customdata[0]}<br>"
+        "개봉일 스크린수: %{x:,.0f}개<br>"
+        "총 관객: %{y:,.0f}명<br>"
+        "첫 주 관객: %{marker.size:,.0f}명"
+        "<extra></extra>"
+    )
+)
+
+
+fig6.update_layout(
+    height=700,
+    xaxis_title="개봉일 스크린수",
+    yaxis_title="총 관객 수",
+    legend_title="장르"
+)
+
+
+st.plotly_chart(
+    fig6,
+    use_container_width=True
+)
+
+
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    "개봉일 스크린수와 총 관객의 관계뿐만 아니라 첫 주 관객이 많은 영화가 어떤 위치에 분포하는지도 함께 살펴볼 수 있다."
 )
 
 
