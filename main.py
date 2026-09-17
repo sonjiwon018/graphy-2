@@ -27,7 +27,7 @@ DATA_URL = (
 def load_data():
     df = pd.read_csv(DATA_URL)
 
-    # 개봉일
+    # 개봉일을 문자열로 처리
     df["openDt"] = df["openDt"].astype(str).str.zfill(8)
 
     # 여러 장르가 | 로 연결되어 있다면 첫 번째 장르만 사용
@@ -124,9 +124,6 @@ st.plotly_chart(
 )
 
 
-# ---------------------------------------
-# 그래프 1 설명
-# ---------------------------------------
 st.subheader("💡 이 그래프로 알 수 있는 것")
 
 st.write(
@@ -154,16 +151,12 @@ treemap_df = df[
     ]
 ].copy()
 
-
-# 영화명 처리
 treemap_df["movieNm"] = (
     treemap_df["movieNm"]
     .fillna("영화명 미상")
     .astype(str)
 )
 
-
-# 총 관객이 0 이하인 데이터 제외
 treemap_df = treemap_df[
     treemap_df["total_audi"] > 0
 ].copy()
@@ -200,9 +193,6 @@ st.plotly_chart(
 )
 
 
-# ---------------------------------------
-# 그래프 2 설명
-# ---------------------------------------
 st.subheader("💡 이 그래프로 알 수 있는 것")
 
 st.write(
@@ -222,7 +212,6 @@ st.caption(
 )
 
 
-# 총 관객 데이터 준비
 hist_df = df[
     ["movieNm", "total_audi"]
 ].copy()
@@ -236,9 +225,6 @@ hist_df = hist_df[
 ]
 
 
-# ---------------------------------------
-# 히스토그램
-# ---------------------------------------
 fig3 = px.histogram(
     hist_df,
     x="total_audi",
@@ -271,20 +257,13 @@ st.plotly_chart(
 
 
 # ---------------------------------------
-# 대부분의 영화가 몰려 있는 구간 계산
+# 가장 많은 영화가 들어 있는 관객 구간 계산
 # ---------------------------------------
 hist_values = hist_df["total_audi"]
 
-# 최대값과 최소값
-min_audience = hist_values.min()
-max_audience = hist_values.max()
-
-# 20개 구간으로 나누기
-bins = 20
-
 bin_counts, bin_edges = pd.cut(
     hist_values,
-    bins=bins,
+    bins=20,
     include_lowest=True,
     retbins=True
 )
@@ -293,10 +272,6 @@ most_common_bin = bin_counts.value_counts().idxmax()
 
 bin_left = most_common_bin.left
 bin_right = most_common_bin.right
-
-most_common_count = (
-    bin_counts.value_counts().max()
-)
 
 
 # ---------------------------------------
@@ -315,15 +290,108 @@ top_movie_audience = hist_df.loc[
 ]
 
 
-# ---------------------------------------
-# 그래프 3 설명
-# ---------------------------------------
 st.subheader("💡 이 그래프로 알 수 있는 것")
 
 st.write(
     f"대부분의 영화는 **약 {bin_left:,.0f}명~{bin_right:,.0f}명** "
     f"구간에 몰려 있으며, 가장 관객이 많은 영화는 "
     f"**{top_movie}**로 총 **{top_movie_audience:,.0f}명**의 관객을 기록했다."
+)
+
+
+# =======================================
+# 4. 개봉일 스크린수와 총 관객 산점도
+# =======================================
+st.divider()
+
+st.header("4️⃣ 개봉일 스크린수와 총 관객의 관계")
+
+st.caption(
+    "개봉일에 확보한 스크린 수와 영화의 총 관객 수 사이의 관계를 살펴봅니다."
+)
+
+
+scatter_df = df[
+    [
+        "movieNm",
+        "genre_first",
+        "first_scrn",
+        "total_audi"
+    ]
+].copy()
+
+
+# 산점도에 필요한 값이 없는 행 제거
+scatter_df = scatter_df.dropna(
+    subset=[
+        "movieNm",
+        "genre_first",
+        "first_scrn",
+        "total_audi"
+    ]
+)
+
+
+# 음수 데이터 제거
+scatter_df = scatter_df[
+    (scatter_df["first_scrn"] >= 0) &
+    (scatter_df["total_audi"] >= 0)
+]
+
+
+fig4 = px.scatter(
+    scatter_df,
+    x="first_scrn",
+    y="total_audi",
+    color="genre_first",
+    hover_name="movieNm",
+    hover_data={
+        "genre_first": True,
+        "first_scrn": ":,.0f",
+        "total_audi": ":,.0f"
+    },
+    labels={
+        "first_scrn": "개봉일 스크린수",
+        "total_audi": "총 관객 수",
+        "genre_first": "장르"
+    },
+    title="개봉일 스크린수와 총 관객의 관계"
+)
+
+
+fig4.update_traces(
+    marker=dict(
+        size=10,
+        opacity=0.75
+    ),
+    hovertemplate=(
+        "<b>%{hovertext}</b><br>"
+        "장르: %{customdata[0]}<br>"
+        "개봉일 스크린수: %{x:,.0f}개<br>"
+        "총 관객: %{y:,.0f}명"
+        "<extra></extra>"
+    )
+)
+
+
+fig4.update_layout(
+    height=650,
+    xaxis_title="개봉일 스크린수",
+    yaxis_title="총 관객 수",
+    legend_title="장르"
+)
+
+
+st.plotly_chart(
+    fig4,
+    use_container_width=True
+)
+
+
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    "개봉일 스크린수가 많은 영화와 총 관객이 많은 영화 사이에 어떤 관계가 있는지 살펴볼 수 있다."
 )
 
 
