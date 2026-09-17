@@ -14,17 +14,20 @@ st.set_page_config(
 st.title("🎬 영화 데이터 그래프 도감 2 - 분포와 관계")
 st.caption("1년간 박스오피스 10위권에 든 영화 216편의 데이터를 살펴봅니다.")
 
+
 # ---------------------------------------
 # 데이터 불러오기
 # ---------------------------------------
-DATA_URL = "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
+DATA_URL = (
+    "https://raw.githubusercontent.com/greatsong/modudata/main/data/kobis_movies.csv"
+)
 
 
 @st.cache_data
 def load_data():
     df = pd.read_csv(DATA_URL)
 
-    # 개봉일은 문자열로 처리
+    # 개봉일
     df["openDt"] = df["openDt"].astype(str).str.zfill(8)
 
     # 여러 장르가 | 로 연결되어 있다면 첫 번째 장르만 사용
@@ -43,11 +46,21 @@ def load_data():
         "genre_first"
     ] = "미상"
 
-    # 총 관객을 숫자로 변환
-    df["total_audi"] = pd.to_numeric(
-        df["total_audi"],
-        errors="coerce"
-    ).fillna(0)
+    # 숫자형 데이터 변환
+    numeric_columns = [
+        "first_scrn",
+        "first_show",
+        "first_week_audi",
+        "total_audi",
+        "days_in_top10"
+    ]
+
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(
+                df[col],
+                errors="coerce"
+            )
 
     return df
 
@@ -112,15 +125,12 @@ st.plotly_chart(
 
 
 # ---------------------------------------
-# 그래프 1 설명 작성 공간
+# 그래프 1 설명
 # ---------------------------------------
 st.subheader("💡 이 그래프로 알 수 있는 것")
 
-st.text_area(
-    "한 문장으로 작성해 보세요.",
-    placeholder="예: 어떤 장르의 영화가 가장 많이 포함되어 있는지 알 수 있다.",
-    height=80,
-    key="graph1_note"
+st.write(
+    "어떤 장르의 영화가 많이 제작·개봉되었는지 알 수 있다."
 )
 
 
@@ -136,7 +146,6 @@ st.caption(
 )
 
 
-# 트리맵에 사용할 데이터
 treemap_df = df[
     [
         "genre_first",
@@ -145,14 +154,16 @@ treemap_df = df[
     ]
 ].copy()
 
-# 영화명이 비어 있는 경우 처리
+
+# 영화명 처리
 treemap_df["movieNm"] = (
     treemap_df["movieNm"]
     .fillna("영화명 미상")
     .astype(str)
 )
 
-# 총 관객이 0 이하인 데이터는 트리맵 크기 계산에 적합하지 않으므로 제외
+
+# 총 관객이 0 이하인 데이터 제외
 treemap_df = treemap_df[
     treemap_df["total_audi"] > 0
 ].copy()
@@ -190,15 +201,129 @@ st.plotly_chart(
 
 
 # ---------------------------------------
-# 그래프 2 설명 작성 공간
+# 그래프 2 설명
 # ---------------------------------------
 st.subheader("💡 이 그래프로 알 수 있는 것")
 
-st.text_area(
-    "한 문장으로 작성해 보세요.",
-    placeholder="예: 장르별로 어떤 영화가 많은 관객을 모았는지 비교할 수 있다.",
-    height=80,
-    key="graph2_note"
+st.write(
+    "각 장르에서 어떤 영화가 많은 관객을 모았는지 비교할 수 있다."
+)
+
+
+# =======================================
+# 3. 총 관객 히스토그램
+# =======================================
+st.divider()
+
+st.header("3️⃣ 영화별 총 관객 분포")
+
+st.caption(
+    "영화들의 총 관객 수가 어떤 구간에 많이 분포하는지 확인합니다."
+)
+
+
+# 총 관객 데이터 준비
+hist_df = df[
+    ["movieNm", "total_audi"]
+].copy()
+
+hist_df = hist_df.dropna(
+    subset=["total_audi"]
+)
+
+hist_df = hist_df[
+    hist_df["total_audi"] >= 0
+]
+
+
+# ---------------------------------------
+# 히스토그램
+# ---------------------------------------
+fig3 = px.histogram(
+    hist_df,
+    x="total_audi",
+    nbins=20,
+    title="총 관객 수 분포",
+    labels={
+        "total_audi": "총 관객 수",
+        "count": "영화 편수"
+    }
+)
+
+fig3.update_traces(
+    hovertemplate=(
+        "관객 구간: %{x}<br>"
+        "영화 편수: %{y}편"
+        "<extra></extra>"
+    )
+)
+
+fig3.update_layout(
+    height=550,
+    xaxis_title="총 관객 수",
+    yaxis_title="영화 편수"
+)
+
+st.plotly_chart(
+    fig3,
+    use_container_width=True
+)
+
+
+# ---------------------------------------
+# 대부분의 영화가 몰려 있는 구간 계산
+# ---------------------------------------
+hist_values = hist_df["total_audi"]
+
+# 최대값과 최소값
+min_audience = hist_values.min()
+max_audience = hist_values.max()
+
+# 20개 구간으로 나누기
+bins = 20
+
+bin_counts, bin_edges = pd.cut(
+    hist_values,
+    bins=bins,
+    include_lowest=True,
+    retbins=True
+)
+
+most_common_bin = bin_counts.value_counts().idxmax()
+
+bin_left = most_common_bin.left
+bin_right = most_common_bin.right
+
+most_common_count = (
+    bin_counts.value_counts().max()
+)
+
+
+# ---------------------------------------
+# 가장 관객이 많은 영화
+# ---------------------------------------
+max_index = hist_df["total_audi"].idxmax()
+
+top_movie = hist_df.loc[
+    max_index,
+    "movieNm"
+]
+
+top_movie_audience = hist_df.loc[
+    max_index,
+    "total_audi"
+]
+
+
+# ---------------------------------------
+# 그래프 3 설명
+# ---------------------------------------
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    f"대부분의 영화는 **약 {bin_left:,.0f}명~{bin_right:,.0f}명** "
+    f"구간에 몰려 있으며, 가장 관객이 많은 영화는 "
+    f"**{top_movie}**로 총 **{top_movie_audience:,.0f}명**의 관객을 기록했다."
 )
 
 
