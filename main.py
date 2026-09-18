@@ -695,3 +695,98 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
+# =======================================
+# 8. 장르별 10위권 유지 기간
+# =======================================
+st.divider()
+
+st.header("8️⃣ 장르에 따른 10위권 유지 기간의 차이")
+
+st.caption(
+    "장르별로 영화가 10위권에 머문 평균 일수를 비교합니다."
+)
+
+# ---------------------------------------
+# 데이터 준비
+# ---------------------------------------
+genre_df = df[
+    [
+        "genre_first",
+        "days_in_top10"
+    ]
+].copy()
+
+genre_df["days_in_top10"] = pd.to_numeric(
+    genre_df["days_in_top10"],
+    errors="coerce"
+)
+
+genre_df["genre_first"] = (
+    genre_df["genre_first"]
+    .fillna("미상")
+    .astype(str)
+    .str.strip()
+)
+
+genre_df = genre_df.dropna(
+    subset=["days_in_top10"]
+)
+
+# ---------------------------------------
+# 장르별 평균 계산
+# ---------------------------------------
+genre_avg = (
+    genre_df
+    .groupby("genre_first", as_index=False)["days_in_top10"]
+    .mean()
+    .sort_values("days_in_top10", ascending=False)
+)
+
+genre_avg["days_in_top10"] = genre_avg["days_in_top10"].round(1)
+
+# ---------------------------------------
+# 막대그래프
+# ---------------------------------------
+fig8 = px.bar(
+    genre_avg,
+    x="genre_first",
+    y="days_in_top10",
+    labels={
+        "genre_first": "장르",
+        "days_in_top10": "평균 10위권 유지 일수"
+    },
+    title="장르별 평균 10위권 유지 일수"
+)
+
+fig8.update_traces(
+    hovertemplate=(
+        "<b>%{x}</b><br>"
+        "평균 10위권 유지 일수: %{y:.1f}일"
+        "<extra></extra>"
+    )
+)
+
+fig8.update_layout(
+    height=600,
+    margin=dict(
+        t=60,
+        l=10,
+        r=10,
+        b=10
+    )
+)
+
+st.plotly_chart(
+    fig8,
+    use_container_width=True
+)
+
+# ---------------------------------------
+# 해석
+# ---------------------------------------
+st.subheader("💡 이 그래프로 알 수 있는 것")
+
+st.write(
+    "장르별 평균 10위권 유지 일수를 비교하여 "
+    "어떤 장르의 영화가 상대적으로 오래 10위권에 머무르는지 확인할 수 있다."
+)
